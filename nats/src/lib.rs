@@ -118,81 +118,82 @@
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(
-    feature = "fault_injection",
-    deny(
-        future_incompatible,
-        missing_copy_implementations,
-        missing_docs,
-        nonstandard_style,
-        rust_2018_idioms,
-        trivial_casts,
-        trivial_numeric_casts,
-        unsafe_code,
-        unused,
-        unused_qualifications
-    )
+feature = "fault_injection",
+deny(
+future_incompatible,
+missing_copy_implementations,
+missing_docs,
+nonstandard_style,
+rust_2018_idioms,
+trivial_casts,
+trivial_numeric_casts,
+unsafe_code,
+unused,
+unused_qualifications
+)
 )]
 #![cfg_attr(feature = "fault_injection", deny(
-    // over time, consider enabling the following commented-out lints:
-    // clippy::else_if_without_else,
-    // clippy::indexing_slicing,
-    // clippy::multiple_crate_versions,
-    // clippy::missing_const_for_fn,
-    clippy::cast_lossless,
-    clippy::cast_possible_truncation,
-    clippy::cast_possible_wrap,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::checked_conversions,
-    clippy::decimal_literal_representation,
-    clippy::doc_markdown,
-    clippy::empty_enum,
-    clippy::explicit_into_iter_loop,
-    clippy::explicit_iter_loop,
-    clippy::expl_impl_clone_on_copy,
-    clippy::fallible_impl_from,
-    clippy::filter_map_next,
-    clippy::float_arithmetic,
-    clippy::get_unwrap,
-    clippy::if_not_else,
-    clippy::inline_always,
-    clippy::invalid_upcast_comparisons,
-    clippy::items_after_statements,
-    clippy::manual_filter_map,
-    clippy::manual_find_map,
-    clippy::map_flatten,
-    clippy::map_unwrap_or,
-    clippy::match_same_arms,
-    clippy::maybe_infinite_iter,
-    clippy::mem_forget,
-    clippy::needless_borrow,
-    clippy::needless_continue,
-    clippy::needless_pass_by_value,
-    clippy::non_ascii_literal,
-    clippy::path_buf_push_overwrite,
-    clippy::print_stdout,
-    clippy::single_match_else,
-    clippy::string_add,
-    clippy::string_add_assign,
-    clippy::type_repetition_in_bounds,
-    clippy::unicode_not_nfc,
-    clippy::unimplemented,
-    clippy::unseparated_literal_suffix,
-    clippy::wildcard_dependencies,
-    clippy::wildcard_enum_match_arm,
+// over time, consider enabling the following commented-out lints:
+// clippy::else_if_without_else,
+// clippy::indexing_slicing,
+// clippy::multiple_crate_versions,
+// clippy::missing_const_for_fn,
+clippy::cast_lossless,
+clippy::cast_possible_truncation,
+clippy::cast_possible_wrap,
+clippy::cast_precision_loss,
+clippy::cast_sign_loss,
+clippy::checked_conversions,
+clippy::decimal_literal_representation,
+clippy::doc_markdown,
+clippy::empty_enum,
+clippy::explicit_into_iter_loop,
+clippy::explicit_iter_loop,
+clippy::expl_impl_clone_on_copy,
+clippy::fallible_impl_from,
+clippy::filter_map_next,
+clippy::float_arithmetic,
+clippy::get_unwrap,
+clippy::if_not_else,
+clippy::inline_always,
+clippy::invalid_upcast_comparisons,
+clippy::items_after_statements,
+clippy::manual_filter_map,
+clippy::manual_find_map,
+clippy::map_flatten,
+clippy::map_unwrap_or,
+clippy::match_same_arms,
+clippy::maybe_infinite_iter,
+clippy::mem_forget,
+clippy::needless_borrow,
+clippy::needless_continue,
+clippy::needless_pass_by_value,
+clippy::non_ascii_literal,
+clippy::path_buf_push_overwrite,
+clippy::print_stdout,
+clippy::single_match_else,
+clippy::string_add,
+clippy::string_add_assign,
+clippy::type_repetition_in_bounds,
+clippy::unicode_not_nfc,
+clippy::unimplemented,
+clippy::unseparated_literal_suffix,
+clippy::wildcard_dependencies,
+clippy::wildcard_enum_match_arm,
 ))]
 #![allow(
-    clippy::match_like_matches_macro,
-    clippy::await_holding_lock,
-    clippy::shadow_reuse,
-    clippy::shadow_same,
-    clippy::shadow_unrelated,
-    clippy::wildcard_enum_match_arm,
-    clippy::module_name_repetitions
+clippy::match_like_matches_macro,
+clippy::await_holding_lock,
+clippy::shadow_reuse,
+clippy::shadow_same,
+clippy::shadow_unrelated,
+clippy::wildcard_enum_match_arm,
+clippy::module_name_repetitions
 )]
 // As this is a deprecated client, we don't want warnings from new lints to make CI red.
 #![allow(clippy::all)]
 #![allow(warnings)]
+
 /// Async-enabled NATS client.
 pub mod asynk;
 
@@ -252,8 +253,10 @@ use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
+use std::thread::JoinHandle;
 
 use lazy_static::lazy_static;
+use parking_lot::Mutex;
 use regex::Regex;
 
 pub use connector::{IntoServerList, ServerAddress};
@@ -421,8 +424,8 @@ impl Connection {
     ///
     /// For more on how to use [`IntoServerList`] trait see [`crate::connect()`].
     pub(crate) fn connect_with_options<I>(urls: I, options: Options) -> io::Result<Connection>
-    where
-        I: IntoServerList,
+        where
+            I: IntoServerList,
     {
         let urls = urls.into_server_list()?;
         let client = Client::connect(urls, options)?;
@@ -707,6 +710,14 @@ impl Connection {
     pub fn close(self) {
         self.0.client.flush(DEFAULT_FLUSH_TIMEOUT).ok();
         self.0.client.close();
+    }
+
+    pub fn client_thread_handle(self) -> Arc<Mutex<Option<JoinHandle<()>>>> {
+        self.0.client.client_thread.clone()
+    }
+
+    pub fn flush_thread_handle(self) -> Arc<Mutex<Option<JoinHandle<()>>>> {
+        self.0.client.flush_thread.clone()
     }
 
     /// Calculates the round trip time between this client and the server,

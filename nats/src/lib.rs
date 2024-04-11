@@ -712,11 +712,11 @@ impl Connection {
         self.0.client.close();
     }
 
-    pub fn client_thread_handle(self) -> Arc<Mutex<Option<JoinHandle<()>>>> {
+    pub fn client_thread_handle(&self) -> Arc<Mutex<Option<JoinHandle<()>>>> {
         self.0.client.client_thread.clone()
     }
 
-    pub fn flush_thread_handle(self) -> Arc<Mutex<Option<JoinHandle<()>>>> {
+    pub fn flush_thread_handle(&self) -> Arc<Mutex<Option<JoinHandle<()>>>> {
         self.0.client.flush_thread.clone()
     }
 
